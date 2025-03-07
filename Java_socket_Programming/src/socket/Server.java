@@ -13,10 +13,10 @@ public class Server {
             System.out.println("Server started on port " + PORT);
 
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("New client connected: " + clientSocket);
+                Socket socket = serverSocket.accept();
+                System.out.println("New client connected: " + socket);
 
-                ClientHandler clientHandler = new ClientHandler(clientSocket, clients);
+                ClientHandler clientHandler = new ClientHandler(socket, clients);
                 clients.add(clientHandler);
                 new Thread(clientHandler).start();
             }

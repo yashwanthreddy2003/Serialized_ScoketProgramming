@@ -2,39 +2,52 @@ package socket;
 
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 
 public class Client {
-    private static final String SERVER_ADDRESS = "localhost";
-    private static final int SERVER_PORT = 12345;
-
     public static void main(String[] args) {
-        try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-             BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in))) {
+        try (Socket socket = new Socket("localhost", 12345);
+             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+             Scanner scanner = new Scanner(System.in)) {
 
-            System.out.println(in.readLine()); 
-            out.println(userInput.readLine()); 
+            // Read the server's first message (asking for name)
+            Message serverMessage = (Message) in.readObject();
+            System.out.println(serverMessage.getSender() + ": " + serverMessage.getContent());
 
-            new Thread(() -> {
+            // Send the client's name
+            System.out.print("Enter your name: ");
+            String name = scanner.nextLine();
+            out.writeObject(new Message(name, name));
+            out.flush();
+
+            // Start a thread to continuously listen for incoming messages
+            Thread listenThread = new Thread(() -> {
                 try {
-                    String serverMessage;
-                    while ((serverMessage = in.readLine()) != null) {
-                        System.out.println(serverMessage);
+                    while (true) {
+                        Message receivedMessage = (Message) in.readObject();
+                        System.out.println(receivedMessage.getSender() + ": " + receivedMessage.getContent());
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                } catch (IOException | ClassNotFoundException e) {
+                    System.out.println("Disconnected from server.");
                 }
-            }).start();
+            });
+            listenThread.start();
 
-            String userMessage;
-            while ((userMessage = userInput.readLine()) != null) {
-                out.println(userMessage);
+            // Read user input and send messages
+            while (true) {
+                String userMessage = scanner.nextLine();
                 if (userMessage.equalsIgnoreCase("exit")) {
                     break;
                 }
+
+                out.writeObject(new Message(name, userMessage));
+                out.flush();
             }
-        } catch (IOException e) {
+
+            System.out.println("You left the chat.");
+            socket.close();
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }

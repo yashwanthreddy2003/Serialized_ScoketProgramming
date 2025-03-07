@@ -2,7 +2,7 @@ package socket;
 import java.io.Serializable;
 
 public class Message implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L; // Ensures compatibility for serialization
     private String sender;
     private String content;
 
@@ -17,10 +17,5 @@ public class Message implements Serializable {
 
     public String getContent() {
         return content;
-    }
-
-    @Override
-    public String toString() {
-        return sender + ": " + content;
     }
 }

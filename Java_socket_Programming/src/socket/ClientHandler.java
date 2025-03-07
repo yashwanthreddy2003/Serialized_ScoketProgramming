@@ -6,49 +6,58 @@ import java.util.*;
 
 public class ClientHandler implements Runnable {
     private Socket socket;
-    private PrintWriter out;
-    private BufferedReader in;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
     private String clientName;
     private Set<ClientHandler> clients;
 
     public ClientHandler(Socket socket, Set<ClientHandler> clients) {
         this.socket = socket;
         this.clients = clients;
-    }
-
-    @Override
-    public void run() {
         try {
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
-
-            out.println("Enter your name: ");
-            clientName = in.readLine();
-            System.out.println(clientName + " joined the chat.");
-            broadcast(clientName + " joined the chat!", this);
-
-            String message;
-            while ((message = in.readLine()) != null) {
-                if (message.equalsIgnoreCase("exit")) {
-                    break;
-                }
-                System.out.println(clientName + ": " + message);
-
-                broadcast(clientName + ": " + message, this);
-            }
-            System.out.println(clientName + " left the chat.");
-            broadcast(clientName + " left the chat.", this);
-            clients.remove(this);
-            socket.close();
+            out = new ObjectOutputStream(socket.getOutputStream());
+            in = new ObjectInputStream(socket.getInputStream());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void broadcast(String message, ClientHandler sender) {
+    @Override
+    public void run() {
+        try {
+            out.writeObject(new Message("Server", "Enter your name:"));
+            out.flush();
+
+            clientName = ((Message) in.readObject()).getContent();
+            System.out.println(clientName + " joined the chat.");
+            broadcast(new Message("Server", clientName + " joined the chat."));
+
+            Message message;
+            while ((message = (Message) in.readObject()) != null) {
+                if (message.getContent().equalsIgnoreCase("exit")) {
+                    break;
+                }
+
+                System.out.println(clientName + ": " + message.getContent());
+                broadcast(new Message(clientName, message.getContent()));
+            }
+
+            System.out.println(clientName + " left the chat.");
+            broadcast(new Message("Server", clientName + " left the chat."));
+            clients.remove(this);
+            socket.close();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void broadcast(Message message) {
         for (ClientHandler client : clients) {
-            if (client != sender) {
-                client.out.println(message);
+            try {
+                client.out.writeObject(message);
+                client.out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
